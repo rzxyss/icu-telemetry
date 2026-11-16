@@ -1,0 +1,124 @@
+/* 
+  ICU Telemetry Command Center - Clinical Slate Theme
+  Designed for Big Data Spark Streaming Case Study
+*/
+
+:root {
+  --bg-obsidian: #080c14;
+  --bg-card: #0b101c;
+  --bg-card-inner: #070b13;
+  --border-card: #1e293b;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --clinical-emerald: #10b981;
+  --clinical-amber: #f59e0b;
+  --clinical-rose: #ef4444;
+  --clinical-cyan: #06b6d4;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-obsidian);
+  color: var(--text-main);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Monospace fonts for telemetry and data readouts */
+.font-mono {
+  font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ECG Oscilloscope Screen Grid Pattern */
+.ecg-grid {
+  background-size: 20px 20px, 4px 4px;
+  background-image: 
+    linear-gradient(to right, rgba(16, 185, 129, 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(16, 185, 129, 0.12) 1px, transparent 1px),
+    linear-gradient(to right, rgba(16, 185, 129, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(16, 185, 129, 0.04) 1px, transparent 1px);
+}
+
+/* Heartbeat Animation */
+.heart-pulse {
+  display: inline-block;
+  animation: heartPulse 1.2s infinite ease-in-out;
+}
+
+@keyframes heartPulse {
+  0% { transform: scale(1); }
+  14% { transform: scale(1.3); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.2); }
+  70% { transform: scale(1); }
+}
+
+/* Critical Bed Pulsing Glow */
+.bed-critical {
+  border-color: rgba(239, 68, 68, 0.7) !important;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.25);
+  animation: criticalPulse 2s infinite ease-in-out;
+}
+
+@keyframes criticalPulse {
+  0%, 100% { border-color: rgba(239, 68, 68, 0.7); box-shadow: 0 0 15px rgba(239, 68, 68, 0.25); }
+  50% { border-color: rgba(239, 68, 68, 1); box-shadow: 0 0 25px rgba(239, 68, 68, 0.45); }
+}
+
+/* Warning Bed Border */
+.bed-warning {
+  border-color: rgba(245, 158, 11, 0.6) !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.15);
+}
+
+/* Stable Bed Border */
+.bed-stable {
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+/* Custom Scrollbar for Alert Stream */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #070b13;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Modal Fade-in */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Alert item entry animation */
+@keyframes alertSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.alert-item-enter {
+  animation: alertSlideIn 0.25s ease-out forwards;
+}
+
+/* Utility classes fallback (ensuring perfect render even without Tailwind CLI) */
+.bg-obsidian { background-color: #080c14; }
+.border-slate-800 { border-color: #1e293b; }
+.border-slate-700 { border-color: #334155; }
