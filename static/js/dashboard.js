@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     beds: {},
     featuredBedId: 1,
     activeFilter: 'ALL',
-    audioEnabled: false,
+    audioEnabled: true, // Otomatis aktif
     streamActive: true,
     alerts: [],
     trendChart: null,
@@ -27,6 +27,11 @@ document.addEventListener('DOMContentLoaded', () => {
       audioCtx.resume();
     }
   }
+
+  // Buka AudioContext otomatis saat pengguna pertama kali berinteraksi (kebijakan autoplay browser)
+  ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(evt => {
+    document.addEventListener(evt, () => initAudio(), { once: true });
+  });
 
   function playMedicalBeep(severity = 'CRITICAL') {
     if (!state.audioEnabled || !audioCtx) return;
@@ -70,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     summaryStableCount: document.getElementById('summary-stable-count'),
     
     // Featured Bed Elements
+    selectFeaturedBed: document.getElementById('select-featured-bed'),
     featuredBedLabel: document.getElementById('featured-bed-label'),
     featuredPatientInfo: document.getElementById('featured-patient-info'),
     featHr: document.getElementById('feat-hr'),
@@ -84,9 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Controls
     btnToggleStream: document.getElementById('btn-toggle-stream'),
     btnStreamText: document.getElementById('btn-stream-text'),
-    btnSound: document.getElementById('btn-sound'),
-    iconSoundOn: document.getElementById('icon-sound-on'),
-    iconSoundOff: document.getElementById('icon-sound-off'),
     btnAnomalyMenu: document.getElementById('btn-anomaly-menu'),
     anomalyDropdown: document.getElementById('anomaly-dropdown'),
     
@@ -183,9 +186,27 @@ document.addEventListener('DOMContentLoaded', () => {
     el.sparkIndicator.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
     el.sparkStatusText.textContent = metrics.spark_active ? 'SPARK STREAMING' : 'MICRO-BATCHING';
 
-    el.summaryCritCount.textContent = metrics.critical_alerts_count || 0;
-    el.summaryWarnCount.textContent = metrics.warning_alerts_count || 0;
-    el.summaryStableCount.textContent = metrics.normal_count || 0;
+    updateSummaryCounts();
+  }
+
+  function updateSummaryCounts() {
+    let crit = 0;
+    let warn = 0;
+    let stable = 0;
+    const bedValues = Object.values(state.beds);
+    bedValues.forEach(b => {
+      if (b.risk_category === 'CRITICAL') {
+        crit++;
+      } else if (b.risk_category === 'WARNING') {
+        warn++;
+      } else {
+        stable++;
+      }
+    });
+
+    if (el.summaryCritCount) el.summaryCritCount.textContent = crit;
+    if (el.summaryWarnCount) el.summaryWarnCount.textContent = warn;
+    if (el.summaryStableCount) el.summaryStableCount.textContent = stable;
   }
 
   // 4. Render Bed Cards
@@ -199,6 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
       el.bedsGrid.appendChild(card);
     });
     applyFilter();
+    updateSummaryCounts();
   }
 
   function createBedCardElement(bed) {
@@ -234,6 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 80);
     
     applyFilter();
+    updateSummaryCounts();
   }
 
   function getBedBorderClass(category) {
@@ -315,7 +338,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 5. Featured Bed Synchronization
   window.setFeaturedBed = function(bedId) {
-    state.featuredBedId = bedId;
+    state.featuredBedId = parseInt(bedId);
+    if (el.selectFeaturedBed) {
+      el.selectFeaturedBed.value = String(state.featuredBedId);
+    }
     updateFeaturedBedDisplay();
     renderAllBeds();
   };
@@ -324,8 +350,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const bed = state.beds[state.featuredBedId];
     if (!bed) return;
 
-    el.featuredBedLabel.textContent = bed.bed_label;
-    el.featuredPatientInfo.textContent = `(Pasien #${bed.patient_id}, ${bed.gender}, ${bed.age} Th, BMI: ${bed.vitals.bmi})`;
+    if (el.selectFeaturedBed && el.selectFeaturedBed.value != String(state.featuredBedId)) {
+      el.selectFeaturedBed.value = String(state.featuredBedId);
+    }
+
+    if (el.featuredBedLabel) {
+      el.featuredBedLabel.textContent = bed.bed_label;
+    }
+    el.featuredPatientInfo.textContent = `(Pasien #${bed.patient_id || '-'}, ${bed.gender || '-'}, ${bed.age || '-'} Th, BMI: ${bed.vitals ? bed.vitals.bmi : '-'})`;
 
     const v = bed.vitals || {};
     el.featHr.textContent = v.heart_rate || '--';
@@ -595,21 +627,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   });
 
-  // Sound Toggle
-  el.btnSound.onclick = () => {
-    initAudio();
-    state.audioEnabled = !state.audioEnabled;
-    if (state.audioEnabled) {
-      el.iconSoundOn.classList.remove('hidden');
-      el.iconSoundOff.classList.add('hidden');
-      el.btnSound.classList.add('bg-cyan-950', 'text-cyan-400', 'border-cyan-800');
-      playMedicalBeep('CRITICAL');
-    } else {
-      el.iconSoundOn.classList.add('hidden');
-      el.iconSoundOff.classList.remove('hidden');
-      el.btnSound.classList.remove('bg-cyan-950', 'text-cyan-400', 'border-cyan-800');
-    }
-  };
+  // Featured Bed Dropdown Change Listener
+  if (el.selectFeaturedBed) {
+    el.selectFeaturedBed.onchange = (e) => {
+      window.setFeaturedBed(e.target.value);
+    };
+  }
 
   // Anomaly Injection Menu
   el.btnAnomalyMenu.onclick = (e) => {
@@ -627,11 +650,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const anomalyType = opt.dataset.type;
       el.anomalyDropdown.classList.add('hidden');
       
+      // Otomatis inject ke tempat tidur yang saat ini sedang aktif dimonitor
+      const targetBed = state.featuredBedId;
+      
       try {
         const res = await fetch('/api/control/inject_anomaly', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: anomalyType, bed_id: state.featuredBedId })
+          body: JSON.stringify({ type: anomalyType, bed_id: targetBed })
         });
         const data = await res.json();
         console.log('[Anomaly Injected]', data);

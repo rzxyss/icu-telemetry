@@ -69,6 +69,20 @@ def get_status():
     """Return streaming engine and micro-batch statistics."""
     return jsonify(bridge.get_metrics())
 
+@app.route("/api/spark/batch", methods=["POST"])
+def report_spark_batch():
+    """
+    Endpoint called by spark_processor.py foreachBatch to synchronize
+    real Spark Structured Streaming metrics into Flask in real-time.
+    """
+    data = request.get_json() or {}
+    batch_id = int(data.get("batch_id", 0))
+    record_count = int(data.get("record_count", 0))
+    latency_ms = float(data.get("latency_ms", 0.0))
+    
+    bridge.record_spark_batch(batch_id, record_count, latency_ms)
+    return jsonify({"success": True, "batch_id": batch_id})
+
 @app.route("/api/beds")
 def get_beds():
     """Return latest vital signs and status of all ICU beds."""
@@ -151,4 +165,4 @@ if __name__ == "__main__":
     print(f"\n========================================================")
     print(f" [ICU COMMAND CENTER] Dashboard running at: http://{config.FLASK_HOST}:{config.FLASK_PORT}")
     print(f"========================================================\n")
-    app.run(host=config.FLASK_HOST, port=config.FLASK_PORT, debug=True, threaded=True)
+    app.run(host=config.FLASK_HOST, port=config.FLASK_PORT, debug=False, threaded=True)

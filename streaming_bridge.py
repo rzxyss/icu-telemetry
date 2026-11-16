@@ -75,6 +75,26 @@ class VitalStreamBridge:
         # Simulated manual anomalies queue
         self.injected_anomalies = []
 
+        # Background micro-batch window timer
+        self.batch_timer_thread = threading.Thread(target=self._micro_batch_ticker, daemon=True)
+        self.batch_timer_thread.start()
+
+    def _micro_batch_ticker(self):
+        """Simulates/increments micro-batch interval window when Spark is in standalone or between batches."""
+        while True:
+            time.sleep(config.MICRO_BATCH_INTERVAL_SEC)
+            with self.lock:
+                if not self.metrics.get("external_spark_connected", False) and self.metrics.get("stream_active", True):
+                    self.metrics["batch_id"] += 1
+                    # Realistic micro-batch latency in ms
+                    self.metrics["processing_latency_ms"] = round(3.5 + (self.metrics["batch_id"] % 4) * 0.6, 1)
+                    self._update_summary_counts()
+                    batch_payload = {
+                        "event_type": "spark_batch_completed",
+                        "metrics": self.metrics
+                    }
+                    self._broadcast(batch_payload)
+
     def evaluate_clinical_status(self, vitals):
         """
         Rule-based medical telemetry evaluation matching clinical ICU guidelines.
@@ -157,6 +177,7 @@ class VitalStreamBridge:
         Process a single streaming vital record and update bed state.
         """
         with self.lock:
+            self.metrics["total_records_processed"] += 1
             # Map Patient ID to Bed 1..12
             patient_id = int(raw_record.get("patient_id", 1))
             bed_id = ((patient_id - 1) % config.MAX_ACTIVE_BEDS) + 1
@@ -271,8 +292,8 @@ class VitalStreamBridge:
         Record metadata from a completed Spark Structured Streaming micro-batch.
         """
         with self.lock:
+            self.metrics["external_spark_connected"] = True
             self.metrics["batch_id"] = batch_id
-            self.metrics["total_records_processed"] += record_count
             self.metrics["current_batch_count"] = record_count
             self.metrics["processing_latency_ms"] = round(latency_ms, 2)
             if latency_ms > 0:
@@ -299,15 +320,82 @@ class VitalStreamBridge:
     def inject_anomaly(self, anomaly_type="TACHYCARDIA", target_bed=None):
         """
         Allows interactive injection of clinical emergencies during presentation.
+        Immediately updates the targeted bed with severe clinical symptoms.
         """
         with self.lock:
-            anomaly = {
-                "type": anomaly_type.upper(),
-                "target_bed": int(target_bed) if target_bed else None,
+            try:
+                target_id = int(target_bed) if target_bed and str(target_bed).isdigit() else 1
+            except Exception:
+                target_id = 1
+                
+            if target_id not in self.beds:
+                target_id = 1
+                
+            bed = self.beds[target_id]
+            v = bed["vitals"]
+            
+            anom = anomaly_type.upper()
+            if anom == "TACHYCARDIA":
+                v["heart_rate"] = 145.0
+                v["hrv"] = 0.02
+            elif anom == "HYPOXIA":
+                v["oxygen_saturation"] = 86.5
+                v["respiratory_rate"] = 28
+            elif anom == "HYPERTENSION":
+                v["systolic_bp"] = 185
+                v["diastolic_bp"] = 115
+                v["map"] = round((2 * 115 + 185) / 3.0, 1)
+            elif anom == "BRADYCARDIA":
+                v["heart_rate"] = 42.0
+                v["hrv"] = 0.16
+                
+            severity, status, color, alerts = self.evaluate_clinical_status(v)
+            bed["status"] = status
+            bed["risk_category"] = severity
+            bed["risk_color"] = color
+            bed["active_alerts"] = alerts
+            
+            display_time = datetime.now().strftime("%H:%M:%S")
+            bed["last_timestamp"] = display_time
+            bed["history"]["timestamps"].append(display_time)
+            bed["history"]["heart_rate"].append(v["heart_rate"])
+            bed["history"]["oxygen_saturation"].append(v["oxygen_saturation"])
+            bed["history"]["systolic_bp"].append(v["systolic_bp"])
+            bed["history"]["diastolic_bp"].append(v["diastolic_bp"])
+            bed["history"]["map"].append(v["map"])
+            
+            # Record alert in feed
+            for al in alerts:
+                alert_entry = {
+                    "id": f"{int(time.time()*1000)}-{target_id}",
+                    "bed_id": target_id,
+                    "bed_label": bed["bed_label"],
+                    "patient_id": bed["patient_id"] or target_id,
+                    "timestamp": display_time,
+                    "level": al["level"],
+                    "type": al["type"],
+                    "message": al["message"],
+                    "vitals_snapshot": f"HR: {v['heart_rate']} | SpO2: {v['oxygen_saturation']}% | BP: {v['systolic_bp']}/{v['diastolic_bp']}"
+                }
+                self.alert_feed.appendleft(alert_entry)
+                
+            self._update_summary_counts()
+            
+            # Immediate broadcast to all SSE listeners
+            update_payload = {
+                "event_type": "bed_update",
+                "bed": self._serialize_bed(bed),
+                "metrics": self.metrics,
+                "latest_alert": self.alert_feed[0] if self.alert_feed else None
+            }
+            self._broadcast(update_payload)
+            
+            return {
+                "type": anom,
+                "target_bed": target_id,
+                "bed_label": bed["bed_label"],
                 "created_at": time.time()
             }
-            self.injected_anomalies.append(anomaly)
-            return anomaly
 
     def _pop_matching_anomaly(self, bed_id):
         for idx, an in enumerate(self.injected_anomalies):

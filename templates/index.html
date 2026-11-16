@@ -45,7 +45,7 @@
             <div class="flex items-center gap-4 bg-[#070b12] px-4 py-2 rounded-xl border border-slate-800/80 text-xs font-mono">
                 <!-- Engine Status -->
                 <div class="flex items-center gap-2">
-                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" id="spark-indicator"></span>
+                    <!-- <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" id="spark-indicator"></span> -->
                     <div>
                         <span class="text-[10px] text-slate-400 block uppercase">Spark Engine</span>
                         <span class="font-bold text-emerald-400 text-xs" id="spark-status-text">MICRO-BATCHING</span>
@@ -76,10 +76,10 @@
                     <span class="font-bold text-amber-300" id="stat-latency">0.0 ms</span>
                 </div>
 
-                <div class="h-6 w-px bg-slate-800"></div>
+                <!-- <div class="h-6 w-px bg-slate-800"></div> -->
 
                 <!-- Fault Tolerance -->
-                <div>
+                <!-- <div>
                     <span class="text-[10px] text-slate-400 block uppercase">Checkpoint</span>
                     <span class="font-bold text-emerald-300 flex items-center gap-1">
                         <svg class="w-3 h-3 text-emerald-400 inline" fill="currentColor" viewBox="0 0 20 20">
@@ -87,7 +87,7 @@
                         </svg>
                         SYNCD
                     </span>
-                </div>
+                </div> -->
             </div>
 
             <!-- Presentation & Demo Controls -->
@@ -111,16 +111,18 @@
                 <!-- Emergency Anomaly Trigger (Demo Feature for Professor) -->
                 <div class="relative inline-block text-left">
                     <button id="btn-anomaly-menu" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600/90 hover:bg-rose-500 text-white text-xs font-semibold transition border border-rose-400/40 shadow-lg shadow-rose-950/40">
-                        <svg class="w-3.5 h-3.5 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                         </svg>
                         <span>Inject Anomali</span>
                     </button>
                     <!-- Dropdown -->
                     <div id="anomaly-dropdown" class="hidden absolute right-0 mt-2 w-64 rounded-xl bg-[#0f172a] border border-slate-700 shadow-2xl py-1.5 z-50 text-xs">
-                        <div class="px-3 py-1.5 text-[10px] font-mono uppercase text-slate-400 border-b border-slate-800">
-                            Simulasi Kasus Kritis ICU
+                        <div class="px-3 py-1.5 text-[10px] font-mono uppercase text-slate-400 border-b border-slate-800 flex items-center justify-between">
+                            <span>Simulasi Kasus Kritis ICU</span>
+                            <span class="text-rose-400 font-bold">EMERGENCY</span>
                         </div>
+
                         <button class="anomaly-opt w-full text-left px-3 py-2 hover:bg-rose-950/60 hover:text-rose-300 text-slate-200 flex flex-col" data-type="TACHYCARDIA">
                             <span class="font-bold text-rose-400">Takikardia Akut (HR 145 bpm)</span>
                             <span class="text-[11px] text-slate-400">Deteksi lonjakan detak jantung abnormal</span>
@@ -139,17 +141,6 @@
                         </button>
                     </div>
                 </div>
-
-                <!-- Sound Toggle -->
-                <button id="btn-sound" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700" title="Toggle Audio Alert">
-                    <svg id="icon-sound-on" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
-                    </svg>
-                    <svg id="icon-sound-off" class="w-4 h-4 hidden text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
-                    </svg>
-                </button>
             </div>
 
         </div>
@@ -223,20 +214,36 @@
             <!-- Featured High-Precision Oscilloscope & Telemetry Lead -->
             <div class="bg-[#0b101c] border border-slate-800 rounded-2xl p-4 shadow-xl">
                 <div class="flex flex-wrap items-center justify-between pb-3 mb-3 border-b border-slate-800/80 gap-3">
-                    <div class="flex items-center gap-2.5">
-                        <!-- <span class="inline-block w-3 h-3 rounded-full bg-cyan-400 animate-ping"></span> -->
-                        <h2 class="text-sm font-semibold tracking-wide uppercase text-slate-200">
-                            Real-Time Lead II ECG Oscilloscope • <span id="featured-bed-label" class="text-cyan-400 font-mono">ICU-BED-01</span>
-                        </h2>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex items-center gap-2">
+                            <label for="select-featured-bed" class="text-xs sm:text-sm font-semibold tracking-wide uppercase text-slate-200">
+                                Monitor Telemetri :
+                            </label>
+                            <select id="select-featured-bed" class="bg-[#070b13] text-cyan-300 border border-cyan-800/70 rounded-lg px-2.5 py-1 text-xs font-mono font-bold focus:outline-none focus:border-cyan-400 cursor-pointer hover:bg-slate-900 transition">
+                                <option value="1">ICU-BED-01</option>
+                                <option value="2">ICU-BED-02</option>
+                                <option value="3">ICU-BED-03</option>
+                                <option value="4">ICU-BED-04</option>
+                                <option value="5">ICU-BED-05</option>
+                                <option value="6">ICU-BED-06</option>
+                                <option value="7">ICU-BED-07</option>
+                                <option value="8">ICU-BED-08</option>
+                                <option value="9">ICU-BED-09</option>
+                                <option value="10">ICU-BED-10</option>
+                                <option value="11">ICU-BED-11</option>
+                                <option value="12">ICU-BED-12</option>
+                            </select>
+                        </div>
+                        <span id="featured-bed-label" class="hidden">ICU-BED-01</span>
                         <span id="featured-patient-info" class="text-xs font-mono text-slate-400">(Pasien #1, Laki-laki, 45 Th)</span>
                     </div>
                     <div class="flex items-center gap-3 text-xs font-mono">
                         <span class="text-slate-400">Sweep: <span class="text-emerald-400">25 mm/s</span></span>
                         <span class="text-slate-400">Gain: <span class="text-emerald-400">10 mm/mV</span></span>
-                        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                        <!-- <div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800 text-slate-300">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                             <span>QRS SYNC</span>
-                        </div>
+                        </div> -->
                     </div>
                 </div>
 
@@ -256,7 +263,6 @@
                     <div class="bg-[#070b13] border border-slate-800/80 rounded-xl p-2.5">
                         <div class="flex items-center justify-between">
                             <span class="text-[10px] font-mono uppercase text-slate-400">Detak Jantung</span>
-                            <span class="heart-pulse text-rose-500 text-xs">♥</span>
                         </div>
                         <div class="flex items-baseline gap-1 mt-0.5">
                             <span class="text-2xl font-bold font-mono text-emerald-400" id="feat-hr">75</span>
@@ -370,7 +376,7 @@
             </div>
 
             <!-- Big Data Architecture Reference Card (For Presentation) -->
-            <div class="bg-[#0b101c] border border-slate-800 rounded-2xl p-4 shadow-xl text-xs space-y-3">
+            <!-- <div class="bg-[#0b101c] border border-slate-800 rounded-2xl p-4 shadow-xl text-xs space-y-3">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                     <h3 class="font-bold uppercase tracking-wider text-cyan-400 text-xs">Big Data Pipeline (Modul 8)</h3>
                     <span class="text-[10px] font-mono bg-cyan-950 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-800">Architecture</span>
@@ -398,7 +404,7 @@
                         <span>ForeachBatch Memory Sink + Flask Real-Time SSE</span>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
         </div>
 
