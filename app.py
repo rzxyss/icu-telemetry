@@ -81,7 +81,7 @@ def report_spark_batch():
     latency_ms = float(data.get("latency_ms", 0.0))
     
     bridge.record_spark_batch(batch_id, record_count, latency_ms)
-    return jsonify({"success": True, "batch_id": batch_id})
+    return jsonify({"success": True, "batch_id": bridge.metrics["batch_id"]})
 
 @app.route("/api/beds")
 def get_beds():

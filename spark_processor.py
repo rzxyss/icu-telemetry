@@ -6,6 +6,10 @@ import socket
 import threading
 import config
 
+# Pastikan driver dan worker Spark selalu menggunakan Python environment yang sama
+os.environ["PYSPARK_PYTHON"] = sys.executable
+os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
+
 # Set Windows hadoop environment
 if os.path.exists(config.HADOOP_HOME):
     os.environ["HADOOP_HOME"] = config.HADOOP_HOME
@@ -63,7 +67,7 @@ def process_micro_batch(batch_df, batch_id):
     ForeachBatch sink: Processes micro-batches from Spark Structured Streaming,
     performs clinical aggregation and updates metrics bridge.
     """
-    start_time = time.time()
+    start_time = time.perf_counter()
     
     # Single-pass execution: Menghindari multiple Spark Jobs per batch
     metrics_row = batch_df.select(
@@ -80,19 +84,14 @@ def process_micro_batch(batch_df, batch_id):
     if record_count == 0:
         return
         
-    raw_duration_ms = (time.time() - start_time) * 1000.0
-    
-    # Latensi eksekusi murni micro-batch (tanpa JVM cold-start awal pada batch 0)
-    if batch_id == 0:
-        latency_ms = min(raw_duration_ms, 7.8)
-    else:
-        # Latensi micro-batch terdistribusi steady-state (< 10 ms)
-        latency_ms = round(min(raw_duration_ms, 3.8 + (record_count * 0.45)), 1)
+    # Latensi pemrosesan real micro-batch diukur dengan high-resolution performance counter
+    latency_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
     
     # Update local streaming bridge
     bridge.record_spark_batch(batch_id, record_count, latency_ms)
 
     # Broadcast micro-batch metrics to Flask Web Dashboard
+    effective_id = batch_id
     try:
         import urllib.request
         req = urllib.request.Request(
@@ -104,13 +103,15 @@ def process_micro_batch(batch_df, batch_id):
             }).encode("utf-8"),
             headers={"Content-Type": "application/json"}
         )
-        urllib.request.urlopen(req, timeout=0.8)
+        resp = urllib.request.urlopen(req, timeout=0.8)
+        resp_data = json.loads(resp.read().decode("utf-8"))
+        effective_id = resp_data.get("batch_id", batch_id)
     except Exception:
         pass
     
     # Formatted console output for demonstration & audit
     print("\n" + "="*70)
-    print(f" [SPARK MICRO-BATCH #{batch_id}] TIME: {time.strftime('%H:%M:%S')}")
+    print(f" [SPARK MICRO-BATCH #{effective_id}] (Sesi Spark Run: #{batch_id}) TIME: {time.strftime('%H:%M:%S')}")
     print(f" * Records Processed : {record_count} events")
     print(f" * Processing Latency: {latency_ms:.2f} ms")
     print(f" * Critical Alerts   : {metrics_row['critical_count']} events")

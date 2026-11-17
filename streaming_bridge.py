@@ -75,25 +75,41 @@ class VitalStreamBridge:
         # Simulated manual anomalies queue
         self.injected_anomalies = []
 
+        # Spark heartbeat & cumulative batch tracking
+        self.last_spark_heartbeat = 0
+        self.cumulative_batch_offset = 0
+        self.last_raw_spark_batch = -1
+
         # Background micro-batch window timer
         self.batch_timer_thread = threading.Thread(target=self._micro_batch_ticker, daemon=True)
         self.batch_timer_thread.start()
 
     def _micro_batch_ticker(self):
-        """Simulates/increments micro-batch interval window when Spark is in standalone or between batches."""
+        """Monitors Spark heartbeat or increments fallback window when Spark is in standalone."""
         while True:
             time.sleep(config.MICRO_BATCH_INTERVAL_SEC)
             with self.lock:
-                if not self.metrics.get("external_spark_connected", False) and self.metrics.get("stream_active", True):
-                    self.metrics["batch_id"] += 1
-                    # Realistic micro-batch latency in ms
-                    self.metrics["processing_latency_ms"] = round(3.5 + (self.metrics["batch_id"] % 4) * 0.6, 1)
-                    self._update_summary_counts()
-                    batch_payload = {
-                        "event_type": "spark_batch_completed",
-                        "metrics": self.metrics
-                    }
-                    self._broadcast(batch_payload)
+                now = time.time()
+                # Cek apakah Spark sebelumnya terhubung tapi sekarang mati (tidak ada batch > 4.5s)
+                if self.metrics.get("external_spark_connected", False):
+                    if now - self.last_spark_heartbeat > 4.5:
+                        if self.metrics.get("spark_active", False):
+                            self.metrics["spark_active"] = False
+                            self.metrics["checkpoint_status"] = "OFFLINE"
+                            self._broadcast({
+                                "event_type": "spark_batch_completed",
+                                "metrics": self.metrics
+                            })
+                else:
+                    # Mode standalone (jika spark_processor belum pernah dijalankan sama sekali)
+                    if self.metrics.get("stream_active", True):
+                        self.metrics["batch_id"] += 1
+                        self.metrics["processing_latency_ms"] = round(3.5 + (self.metrics["batch_id"] % 4) * 0.6, 1)
+                        self._update_summary_counts()
+                        self._broadcast({
+                            "event_type": "spark_batch_completed",
+                            "metrics": self.metrics
+                        })
 
     def evaluate_clinical_status(self, vitals):
         """
@@ -290,15 +306,25 @@ class VitalStreamBridge:
     def record_spark_batch(self, batch_id, record_count, latency_ms):
         """
         Record metadata from a completed Spark Structured Streaming micro-batch.
+        Seamlessly accumulates batch IDs across Spark restarts.
         """
         with self.lock:
+            self.last_spark_heartbeat = time.time()
             self.metrics["external_spark_connected"] = True
-            self.metrics["batch_id"] = batch_id
+            self.metrics["spark_active"] = True
+            
+            # Jika Spark me-restart batch dari 0/1 setelah crash, lanjutkan dari nomor batch tertinggi sebelumnya
+            if self.last_raw_spark_batch >= 0 and batch_id <= 1 and batch_id <= self.last_raw_spark_batch:
+                self.cumulative_batch_offset = self.metrics["batch_id"]
+                
+            self.last_raw_spark_batch = batch_id
+            effective_batch_id = self.cumulative_batch_offset + batch_id
+            
+            self.metrics["batch_id"] = effective_batch_id
             self.metrics["current_batch_count"] = record_count
             self.metrics["processing_latency_ms"] = round(latency_ms, 2)
             if latency_ms > 0:
                 self.metrics["input_rate_records_sec"] = round((record_count / (latency_ms / 1000.0)), 1)
-            self.metrics["spark_active"] = True
             self.metrics["checkpoint_status"] = "SYNCD"
             self.metrics["last_updated"] = datetime.now().isoformat()
             
@@ -306,7 +332,7 @@ class VitalStreamBridge:
             now_str = datetime.now().strftime("%H:%M:%S")
             self.window_stats.append({
                 "time": now_str,
-                "batch_id": batch_id,
+                "batch_id": effective_batch_id,
                 "records": record_count,
                 "latency_ms": round(latency_ms, 1)
             })

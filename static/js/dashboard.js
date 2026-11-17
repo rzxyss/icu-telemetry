@@ -181,10 +181,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!metrics) return;
     el.statBatchId.textContent = `#${metrics.batch_id || 0}`;
     el.statTotalRecords.textContent = (metrics.total_records_processed || 0).toLocaleString();
-    el.statLatency.textContent = `${(metrics.processing_latency_ms || 0).toFixed(1)} ms`;
+    el.statLatency.textContent = `${(metrics.processing_latency_ms || 0).toFixed(2)} ms`;
     
-    el.sparkIndicator.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
-    el.sparkStatusText.textContent = metrics.spark_active ? 'SPARK STREAMING' : 'MICRO-BATCHING';
+    if (metrics.external_spark_connected) {
+      if (metrics.spark_active) {
+        el.sparkIndicator.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+        el.sparkStatusText.className = 'font-bold text-emerald-400 text-xs';
+        el.sparkStatusText.textContent = 'SPARK ACTIVE';
+      } else {
+        el.sparkIndicator.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping';
+        el.sparkStatusText.className = 'font-bold text-rose-400 text-xs';
+        el.sparkStatusText.textContent = 'SPARK OFFLINE (CRASH)';
+      }
+    } else {
+      el.sparkIndicator.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+      el.sparkStatusText.className = 'font-bold text-emerald-400 text-xs';
+      el.sparkStatusText.textContent = 'MICRO-BATCHING';
+    }
 
     updateSummaryCounts();
   }
